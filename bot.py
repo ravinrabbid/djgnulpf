@@ -70,7 +70,7 @@ class DJBot(irc.bot.SingleServerIRCBot):
 		elif tokens[0] == "!help":
 			self._handle_help(c, e)
 		else:
-			self._send_answer(c, e, 'Unkown command')
+			self._send_answer(c, e, 'Unkown command, use !help for help.')
 
 	def _handle_now(self, c, e, url):
 		url = self._style_url(url)
