@@ -25,6 +25,8 @@ class mpvHandler():
 		self._current_item = None
 		self._mpv_process = None
 
+		self._current_volume = PLAY_INITIAL_VOL
+
 		self._start_watch_mpv()
 		self._reader_queue = Queue.Queue()
 		self._writer_queue = Queue.Queue()
@@ -84,6 +86,10 @@ class mpvHandler():
 		self._queue.clear()
 		self.lock.release()
 
+	def set_volume(self, vol):
+		self._current_volume = vol
+		self._send_json_message({"command" : ["set_property", "volume", vol]})
+
 	def _play_next(self):
 		self.lock.acquire()
 		if len(self._queue) > 0:
@@ -121,9 +127,9 @@ class mpvHandler():
 
 	def _start_mpv(self):
 		if not self._mpv_running():
-			logging.info("Start MPV")
-			self._mpv_process = subprocess.Popen([PLAY_COMMAND] + PLAY_PARAMS,
-												shell=False)
+			cmd_str = [PLAY_COMMAND] + PLAY_PARAMS
+			logging.info("Start MPV using: "+str(cmd_str))
+			self._mpv_process = subprocess.Popen(cmd_str, shell=False)
 
 	def _mpv_running(self):
 		if self._mpv_process == None:
@@ -141,7 +147,7 @@ class mpvHandler():
 	def _send_json_message(self, msg):
 		msg = json.dumps(msg, separators=",:")
 		msg = msg.encode("utf8", "strict")
-		logging.info("sendding: " + msg)
+		logging.info("sending: " + msg)
 		self._writer_queue.put(msg)
 
 	def _start_message_handler(self):
@@ -166,7 +172,7 @@ class mpvHandler():
 	def _handle_reply(self, msg):
 		if msg["error"] != "success":
 			logging.info("got error: " + msg["error"])
-		else:
+		elif "data" in msg:
 			logging.info("got reply: " + msg["data"])
 			self._title_callback(msg["data"] + " (request by: " + self._current_item[1] + ")")
 
@@ -176,6 +182,8 @@ class mpvHandler():
 			self._send_json_message({"command":["get_property","media-title"]})
 		elif msg["event"] == "idle":
 			self._play_next()
+		elif msg["event"] == "tracks-changed":
+			self.set_volume(self._current_volume)
 
 	# Writer
 	def _start_writer(self):

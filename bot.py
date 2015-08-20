@@ -1,6 +1,7 @@
 import irc.bot
 import logging
 import time
+import math
 
 from config import *
 from mpv_handler import mpvHandler
@@ -15,6 +16,8 @@ class DJBot(irc.bot.SingleServerIRCBot):
 		self.realnick = nickname
 		self.nickinuse = False
 
+		self._title = "< nothing >"
+		self._volume = PLAY_INITIAL_VOL
 		self.player = mpvHandler(self.error_callback, self.title_callback)
 
 	def on_nicknameinuse(self, c, e):
@@ -31,6 +34,11 @@ class DJBot(irc.bot.SingleServerIRCBot):
 		c.privmsg("NickServ", "identify " + self.identpw)
 		logging.info('Joining channel...')
 		c.join(self.channel)
+
+	def on_join(self, c, e):
+		self._send_pub_answer(c, e, "Hi folks!")
+		time.sleep(1)
+		self._update_topic()
 
 	def on_privmsg(self, c, e):
 		print " == PRIVMSG From " + e.source + " to " + e.target + ": " + ', '.join(e.arguments)
@@ -68,6 +76,11 @@ class DJBot(irc.bot.SingleServerIRCBot):
 				self._handle_list(c, e)
 			elif tokens[0] == "!clear":
 				self._handle_clear(c, e)
+			elif tokens[0] == "!vol":
+				if len(tokens) < 2:
+					self._send_answer(c, e, 'Usage: !vol [0-100]')
+					return
+				self._handle_vol(c, e, tokens[1])
 			elif tokens[0] == "!help":
 				self._handle_help(c, e)
 			else:
@@ -109,6 +122,22 @@ class DJBot(irc.bot.SingleServerIRCBot):
 				entry = queue[i]
 				self._send_priv_answer(c, e, str(i) + ": " + entry[0] + " by " + entry[1])
 
+	def _handle_vol(self, c, e, vol):
+		try:
+			v = int(vol)
+		except:
+			self._send_answer(c, e, "Give me a natural number!")
+			return
+
+		if v < 0:
+			self._send_answer(c, e, "What?!")
+			return
+		elif v > 100:
+			self._send_answer(c, e, "\'You crazy?")
+		else:
+			self.volume_callback(v)
+			self.player.set_volume(v)
+
 	def _handle_clear(self, c, e):
 		self.player.clear_queue()
 		self._send_pub_answer(c, e, e.source.nick + " cleared the queue!")
@@ -121,6 +150,7 @@ class DJBot(irc.bot.SingleServerIRCBot):
 		self._send_priv_answer(c, e, "!stop: Stops playback and clears queue.")
 		self._send_priv_answer(c, e, "!clear: Clears the current playback queue.")
 		self._send_priv_answer(c, e, "!list: List the content of the current playback queue.")
+		self._send_priv_answer(c, e, "!vol [1-100]: Sets the volume.")
 		self._send_priv_answer(c, e, "!help: Duh!")
 		self._send_priv_answer(c, e, " ")
 		self._send_priv_answer(c, e, "<url> can be a direct link to most media file formats or some url youtube-dl supports.")
@@ -145,8 +175,19 @@ class DJBot(irc.bot.SingleServerIRCBot):
 			url = 'http://' + url
 		return url
 
+	def _update_topic(self):
+		self._set_topic("[Vol: "+str(self._volume)+"] Now playing: \"" + self._title + " \"")
+
 	def error_callback(self):
 		self._send_pub_answer(self.connection, None, "Playback failed!")
 
 	def title_callback(self, title):
-		self._set_topic("Now playing: " + title)
+		self._title = title
+		self._update_topic()
+
+	def volume_callback(self, vol):
+		if vol != None:
+			v = int(math.floor(vol))
+			if v != self._volume:
+				self._volume = v
+				self._update_topic()
