@@ -16,6 +16,7 @@ class mpvHandler():
 		self.lock = threading.RLock()
 
 		self._running = True
+		self._ready = False
 
 		self._error_callback = error_callback
 		self._title_callback = title_callback
@@ -34,6 +35,9 @@ class mpvHandler():
 	def __del__(self):
 		self._running = False
 		self._stop_mpv()
+
+	def ready_to_play(self):
+		return self._ready
 
 	def start_interrupt(self, entry):
 		self.lock.acquire()
@@ -170,7 +174,7 @@ class mpvHandler():
 		logging.info("got event: " + msg["event"])
 		if msg["event"] == "metadata-update":
 			self._send_json_message({"command":["get_property","media-title"]})
-		elif msg["event"] == "end-file":
+		elif msg["event"] == "idle":
 			self._play_next()
 
 	# Writer
@@ -210,6 +214,7 @@ class mpvHandler():
 				break
 
 		logging.info("Connected to mpv")
+		self._ready = True
 
 		buf = b""
 
@@ -232,6 +237,7 @@ class mpvHandler():
 				self._reader_queue.put(json_msg)
 				linebreak = buf.find(b"\n")
 
+		self._ready = False
 		logging.info("Conection to mpv lost.")
 		self._start_reader()
 

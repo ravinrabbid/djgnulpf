@@ -49,28 +49,31 @@ class DJBot(irc.bot.SingleServerIRCBot):
 		if not tokens[0].startswith('!'):
 			return
 
-		if tokens[0] == "!now":
-			if len(tokens) < 2:
-				self._send_answer(c, e, 'Usage: !play <url>')
-				return
-			self._handle_now(c, e, tokens[1])
-		elif tokens[0] == "!skip":
-			self._handle_skip(c, e)
-		elif tokens[0] == "!stop":
-			self._handle_stop(c, e)
-		elif tokens[0] == "!queue":
-			if len(tokens) < 2:
-				self._send_answer(c, e, 'Usage: !queue <url>')
-				return
-			self._handle_queue(c, e, tokens[1])
-		elif tokens[0] == "!list":
-			self._handle_list(c, e)
-		elif tokens[0] == "!clear":
-			self._handle_clear(c, e)
-		elif tokens[0] == "!help":
-			self._handle_help(c, e)
+		if self.player.ready_to_play():
+			if tokens[0] == "!now":
+				if len(tokens) < 2:
+					self._send_answer(c, e, 'Usage: !play <url>')
+					return
+				self._handle_now(c, e, tokens[1])
+			elif tokens[0] == "!skip":
+				self._handle_skip(c, e)
+			elif tokens[0] == "!stop":
+				self._handle_stop(c, e)
+			elif tokens[0] == "!queue":
+				if len(tokens) < 2:
+					self._send_answer(c, e, 'Usage: !queue <url>')
+					return
+				self._handle_queue(c, e, tokens[1])
+			elif tokens[0] == "!list":
+				self._handle_list(c, e)
+			elif tokens[0] == "!clear":
+				self._handle_clear(c, e)
+			elif tokens[0] == "!help":
+				self._handle_help(c, e)
+			else:
+				self._send_answer(c, e, 'Unkown command, use !help for help.')
 		else:
-			self._send_answer(c, e, 'Unkown command, use !help for help.')
+			self._send_answer(c, e, "Chill, I'm not ready right now!")
 
 	def _handle_now(self, c, e, url):
 		url = self._style_url(url)
