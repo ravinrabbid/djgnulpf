@@ -1,5 +1,6 @@
 import irc.bot
 import logging
+import time
 
 from config import *
 from mpv_handler import mpvHandler
@@ -11,15 +12,22 @@ class DJBot(irc.bot.SingleServerIRCBot):
 		logging.info('Connected!')
 		self.channel = channel
 		self.identpw = identpw
+		self.realnick = nickname
+		self.nickinuse = False
 
 		self.player = mpvHandler(self.error_callback, self.title_callback)
 
 	def on_nicknameinuse(self, c, e):
 		logging.error('Nickname in use!')
-		self.die()
+		c.nick(c.get_nickname() + "_")
+		self.nickinuse = True
 
 	def on_welcome(self, c, e):
 		logging.info('Identifying...')
+		if self.nickinuse:
+			c.privmsg("NickServ", "ghost " + self.realnick + " " + self.identpw)
+			time.sleep(1)
+			c.nick(self.realnick)
 		c.privmsg("NickServ", "identify " + self.identpw)
 		logging.info('Joining channel...')
 		c.join(self.channel)
@@ -89,7 +97,7 @@ class DJBot(irc.bot.SingleServerIRCBot):
 	def _handle_list(self, c, e):
 		queue = self.player.get_queue()
 
-		self._send_priv_answer(c, e, "Current Queue:")
+		self._send_priv_answer(c, e, "Coming up:")
 
 		if len(queue) == 0:
 			self._send_priv_answer(c, e, "<empty>")
